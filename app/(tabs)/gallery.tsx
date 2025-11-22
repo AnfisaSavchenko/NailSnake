@@ -224,8 +224,8 @@ export default function GalleryScreen() {
       const keyword = getRandomKeyword();
       sessionStorage.current = keyword;
 
-      // Construct prompt (photorealistic, high-end style)
-      const prompt = `${keyword} nail art, Macro photography, high-end beauty editorial, Pinterest trending style, photorealistic, 8k resolution, soft lighting. NOT illustration, NOT painting, NOT cartoon`;
+      // Construct prompt (Pinterest Simulator - High Fashion Editorial)
+      const prompt = `Macro photography of ${keyword} nail art, high fashion editorial, pinterest aesthetic, 8k resolution, highly detailed, professional lighting, trending style. NOT cartoon, NOT illustration, NOT drawing, NOT fake, NOT low quality, NOT blurry, NOT messy, NO text, NO watermark`;
 
       // Generate image (10-30 seconds)
       await generateImage({
