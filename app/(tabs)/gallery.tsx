@@ -19,16 +19,22 @@ import { TrendCard } from '@/components/TrendCard';
 const TREND_CATEGORIES = {
   aesthetics: [
     'Pinterest Newsroom editorial',
+    'Pinterest Newsroom trends',
     'WGSN trend forecast',
+    'WGSN color forecast',
+    'WGSN nail trends',
     'Kawaii character aesthetic',
     'Harajuku street style',
     'Korean beauty editorial',
+    'Gen Z nail art',
+    'Nail trends 2026',
   ],
   '3d_elements': [
     '3D jelly art',
     'Maximalist 3D charms',
     'Dimensional gem clusters',
     '3D bubble tea pearls',
+    'Boba tea nail art',
     'Sculptural pearl accents',
   ],
   finishes: [
@@ -54,6 +60,7 @@ const TREND_CATEGORIES = {
     'Micro French tips',
     'Negative space minimalism',
     'Abstract squiggle art',
+    'Polka dot nail art',
   ],
   specific_details: [
     'Tiny rhinestone clusters',

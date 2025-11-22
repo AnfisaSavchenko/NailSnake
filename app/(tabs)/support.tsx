@@ -181,7 +181,6 @@ Respond as their sponsor with Man Repeller energy:`;
         <View style={styles.chatHeader}>
           <View>
             <Text style={styles.chatTitle}>Your Sponsor</Text>
-            <Text style={styles.chatSubtitle}>Man Repeller energy ✨</Text>
           </View>
           {chatHistory.length > 0 && (
             <TouchableOpacity onPress={handleClearHistory} style={styles.clearButton}>
