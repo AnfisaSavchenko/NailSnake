@@ -12,12 +12,15 @@ import { Colors } from '@/constants/Colors';
 import { storage, StreakInfo } from '@/utils/storage';
 import { Snake } from '@/components/Snake';
 import { Confetti } from '@/components/Confetti';
+import { InfoModal } from '@/components/InfoModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function HomeScreen() {
   const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
+  const [credits, setCredits] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
 
@@ -35,8 +38,12 @@ export default function HomeScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const info = await storage.getStreakInfo();
+      const [info, currentCredits] = await Promise.all([
+        storage.getStreakInfo(),
+        storage.getCredits(),
+      ]);
       setStreakInfo(info);
+      setCredits(currentCredits);
 
       // Show alert if streak was broken
       if (info.streakBroken && info.daysMissed > 0) {
@@ -65,9 +72,10 @@ export default function HomeScreen() {
         return;
       }
 
-      // Update UI with new streak
+      // Update UI with new streak and credits
       const updatedInfo = await storage.getStreakInfo();
       setStreakInfo(updatedInfo);
+      setCredits(result.newCreditBalance);
       setShowConfetti(true);
 
       // Hide confetti after animation
@@ -75,19 +83,26 @@ export default function HomeScreen() {
         setShowConfetti(false);
       }, 3000);
 
+      // Show credit reward alert first
+      Alert.alert(
+        '💰 +1 Credit Earned!',
+        `You now have ${result.newCreditBalance} credit${result.newCreditBalance !== 1 ? 's' : ''}! Use them to generate nail art in the Inspo tab.`,
+        [{ text: 'Nice!', style: 'default' }]
+      );
+
       // Show milestone alerts
       if (result.newStreak === 7) {
         setTimeout(() => {
           Alert.alert('🎉 One Week!', 'Amazing! You\'ve completed 7 days in a row!');
-        }, 3500);
+        }, 2000);
       } else if (result.newStreak === 30) {
         setTimeout(() => {
           Alert.alert('👑 30 Days!', 'Incredible! You\'re a nail-growing champion!');
-        }, 3500);
+        }, 2000);
       } else if (result.newStreak % 10 === 0 && result.newStreak > 0) {
         setTimeout(() => {
           Alert.alert('🔥 Milestone!', `${result.newStreak} days! You\'re unstoppable!`);
-        }, 3500);
+        }, 2000);
       }
     } catch (error) {
       console.error('Error checking in:', error);
@@ -133,33 +148,34 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {showConfetti && <Confetti />}
+      <InfoModal visible={showInfoModal} onClose={() => setShowInfoModal(false)} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>Your Habitat</Text>
-            {streakInfo.totalCheckins > 0 && (
-              <Text style={styles.headerSubtitle}>
-                {streakInfo.totalCheckins} total check-in{streakInfo.totalCheckins !== 1 ? 's' : ''}
-              </Text>
-            )}
+        {/* Header with Credits and Info */}
+        <View style={styles.topBar}>
+          <View style={styles.creditsContainer}>
+            <Text style={styles.creditsEmoji}>💰</Text>
+            <Text style={styles.creditsText}>{credits}</Text>
           </View>
-          <View>
-            <View style={styles.streakBadge}>
-              <Text style={styles.streakNumber}>{streak}</Text>
-              <Text style={styles.streakLabel}>day streak</Text>
-            </View>
-            {streakInfo.longestStreak > streak && streakInfo.longestStreak > 0 && (
-              <Text style={styles.longestStreakText}>
-                Best: {streakInfo.longestStreak} days
-              </Text>
-            )}
-          </View>
+          <TouchableOpacity
+            style={styles.infoButton}
+            onPress={() => setShowInfoModal(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.infoButtonText}>?</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Snake Display */}
-        <View style={styles.snakeContainer}>
+        {/* Title */}
+        <Text style={styles.pageTitle}>Your Habitat</Text>
+        {streakInfo.totalCheckins > 0 && (
+          <Text style={styles.pageSubtitle}>
+            {streakInfo.totalCheckins} total check-in{streakInfo.totalCheckins !== 1 ? 's' : ''}
+          </Text>
+        )}
+
+        {/* HERO: Snake Display - Centrally positioned above everything */}
+        <View style={styles.heroSnakeContainer}>
           {streak === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>🥚</Text>
@@ -169,6 +185,19 @@ export default function HomeScreen() {
             </View>
           ) : (
             <Snake segments={streak} />
+          )}
+        </View>
+
+        {/* Streak Badge */}
+        <View style={styles.streakBadgeContainer}>
+          <View style={styles.streakBadge}>
+            <Text style={styles.streakNumber}>{streak}</Text>
+            <Text style={styles.streakLabel}>day streak</Text>
+          </View>
+          {streakInfo.longestStreak > streak && streakInfo.longestStreak > 0 && (
+            <Text style={styles.longestStreakText}>
+              Best: {streakInfo.longestStreak} days
+            </Text>
           )}
         </View>
 
@@ -195,8 +224,9 @@ export default function HomeScreen() {
             <View style={styles.completedCard}>
               <Text style={styles.completedEmoji}>✓</Text>
               <Text style={styles.completedText}>
-                Checked in for today!{'\n'}See you tomorrow!
+                Checked in for today!
               </Text>
+              <Text style={styles.seeTomorrowText}>See you tomorrow</Text>
             </View>
           ) : (
             <TouchableOpacity
@@ -238,37 +268,93 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 40,
   },
-  header: {
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 30,
+    marginTop: 12,
+    marginBottom: 20,
   },
-  headerTitle: {
-    fontSize: 32,
+  creditsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 8,
+  },
+  creditsEmoji: {
+    fontSize: 20,
+  },
+  creditsText: {
+    fontSize: 18,
     fontWeight: '700',
     color: Colors.darkBrown,
   },
-  headerSubtitle: {
+  infoButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.coralOrange,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  infoButtonText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  pageTitle: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: Colors.darkBrown,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  pageSubtitle: {
     fontSize: 14,
     color: Colors.darkBrown,
     opacity: 0.6,
-    marginTop: 4,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  heroSnakeContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 30,
+    padding: 40,
+    minHeight: 280,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  streakBadgeContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
   },
   streakBadge: {
     backgroundColor: Colors.coralOrange,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
     alignItems: 'center',
-    minWidth: 80,
+    minWidth: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   longestStreakText: {
     fontSize: 12,
     color: Colors.darkBrown,
     textAlign: 'center',
-    marginTop: 6,
+    marginTop: 8,
     opacity: 0.7,
     fontWeight: '600',
   },
@@ -281,15 +367,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.white,
     fontWeight: '600',
-  },
-  snakeContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 30,
-    padding: 30,
-    minHeight: 250,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
   },
   emptyState: {
     alignItems: 'center',
@@ -360,7 +437,14 @@ const styles = StyleSheet.create({
     color: Colors.darkBrown,
     fontWeight: '600',
     textAlign: 'center',
-    lineHeight: 26,
+    marginBottom: 8,
+  },
+  seeTomorrowText: {
+    fontSize: 14,
+    color: Colors.darkBrown,
+    opacity: 0.7,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   slipUpButton: {
     marginTop: 20,

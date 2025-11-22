@@ -9,6 +9,8 @@ const KEYS = {
   SAVED_IMAGES: '@nailgrow:saved_images',
   START_DATE: '@nailgrow:start_date',
   STORAGE_VERSION: '@nailgrow:storage_version',
+  CREDITS: '@nailgrow:credits',
+  CHAT_HISTORY: '@nailgrow:chat_history',
 };
 
 const STORAGE_VERSION = '1.0';
@@ -57,6 +59,13 @@ export interface StreakInfo {
   hasCheckedInToday: boolean;
   streakBroken: boolean;
   daysMissed: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
 }
 
 export const storage = {
@@ -244,16 +253,21 @@ export const storage = {
     success: boolean;
     newStreak: number;
     totalCheckins: number;
+    creditsEarned: number;
+    newCreditBalance: number;
     error?: string;
   }> {
     try {
       const streakInfo = await this.getStreakInfo();
 
       if (streakInfo.hasCheckedInToday) {
+        const currentCredits = await this.getCredits();
         return {
           success: false,
           newStreak: streakInfo.currentStreak,
           totalCheckins: streakInfo.totalCheckins,
+          creditsEarned: 0,
+          newCreditBalance: currentCredits,
           error: 'Already checked in today',
         };
       }
@@ -265,17 +279,25 @@ export const storage = {
       await this.setStreak(newStreak);
       await this.setLastCheckin(today);
 
+      // Award 1 credit for check-in
+      const newCreditBalance = await this.addCredits(1);
+
       return {
         success: true,
         newStreak,
         totalCheckins,
+        creditsEarned: 1,
+        newCreditBalance,
       };
     } catch (error) {
       console.error('Error performing checkin:', error);
+      const currentCredits = await this.getCredits();
       return {
         success: false,
         newStreak: 0,
         totalCheckins: 0,
+        creditsEarned: 0,
+        newCreditBalance: currentCredits,
         error: 'Failed to save checkin',
       };
     }
@@ -323,6 +345,98 @@ export const storage = {
       await AsyncStorage.setItem(KEYS.SAVED_IMAGES, JSON.stringify(filtered));
     } catch (error) {
       console.error('Error removing image:', error);
+      throw error;
+    }
+  },
+
+  // Credits Management
+  async getCredits(): Promise<number> {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.CREDITS);
+      return value ? parseInt(value, 10) : 0;
+    } catch (error) {
+      console.error('Error getting credits:', error);
+      return 0;
+    }
+  },
+
+  async setCredits(credits: number): Promise<void> {
+    try {
+      if (credits < 0) credits = 0;
+      await AsyncStorage.setItem(KEYS.CREDITS, credits.toString());
+    } catch (error) {
+      console.error('Error setting credits:', error);
+      throw error;
+    }
+  },
+
+  async addCredits(amount: number): Promise<number> {
+    try {
+      const current = await this.getCredits();
+      const newTotal = current + amount;
+      await this.setCredits(newTotal);
+      return newTotal;
+    } catch (error) {
+      console.error('Error adding credits:', error);
+      throw error;
+    }
+  },
+
+  async spendCredits(amount: number): Promise<{ success: boolean; newBalance: number; error?: string }> {
+    try {
+      const current = await this.getCredits();
+      if (current < amount) {
+        return {
+          success: false,
+          newBalance: current,
+          error: 'Insufficient credits',
+        };
+      }
+      const newBalance = current - amount;
+      await this.setCredits(newBalance);
+      return {
+        success: true,
+        newBalance,
+      };
+    } catch (error) {
+      console.error('Error spending credits:', error);
+      return {
+        success: false,
+        newBalance: 0,
+        error: 'Failed to spend credits',
+      };
+    }
+  },
+
+  // Chat History
+  async getChatHistory(): Promise<ChatMessage[]> {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.CHAT_HISTORY);
+      return value ? JSON.parse(value) : [];
+    } catch (error) {
+      console.error('Error getting chat history:', error);
+      return [];
+    }
+  },
+
+  async saveChatMessage(message: ChatMessage): Promise<void> {
+    try {
+      const history = await this.getChatHistory();
+      history.push(message);
+      // Keep only last 50 messages to prevent storage bloat
+      const trimmed = history.slice(-50);
+      await AsyncStorage.setItem(KEYS.CHAT_HISTORY, JSON.stringify(trimmed));
+    } catch (error) {
+      console.error('Error saving chat message:', error);
+      throw error;
+    }
+  },
+
+  async clearChatHistory(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(KEYS.CHAT_HISTORY);
+    } catch (error) {
+      console.error('Error clearing chat history:', error);
       throw error;
     }
   },
