@@ -18,16 +18,136 @@ import { generateImage } from '@fastshot/ai';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_SIZE = (SCREEN_WIDTH - 60) / 2; // 2 columns with padding
 
-const NAIL_ART_PROMPTS = [
-  'elegant floral nail art design',
-  'abstract geometric nail art patterns',
-  'pastel gradient nail art',
-  'minimalist line art nails',
-  'botanical leaf nail art',
-  'sunset gradient nail art',
-  'marble texture nail art',
-  'tropical flower nail art',
-];
+// Curated trend-based keywords inspired by Pinterest Newsroom, WGSN, Kawaii, K-pop, and Asian 3D nail trends
+const TREND_KEYWORDS = {
+  // Core trend aesthetics
+  aesthetics: [
+    'Pinterest Newsroom editorial style',
+    'WGSN trend forecast',
+    'kawaii character aesthetic',
+    'K-pop idol inspired',
+    'Asian 3D nail art',
+    'Japanese nail salon',
+    'Korean beauty editorial',
+    'Harajuku street style',
+  ],
+
+  // 3D Elements & Textures (Asian 3D nail specialty)
+  threeDElements: [
+    '3D jelly art',
+    'maximalist 3D charms',
+    '3D acrylic sculptures',
+    'dimensional gem clusters',
+    '3D bubble tea pearls',
+    '3D kawaii characters',
+    'raised floral appliques',
+    '3D crystal formations',
+    'sculptural pearl accents',
+    '3D resin flowers',
+  ],
+
+  // Finishes & Techniques
+  finishes: [
+    'chrome powder mirror finish',
+    'syrup gel gradient',
+    'glass skin translucent',
+    'airbrush aura effect',
+    'holographic iridescent',
+    'velvet matte texture',
+    'glazed donut shine',
+    'sugar crystal texture',
+    'milk bath opacity',
+    'candy gloss coating',
+  ],
+
+  // K-pop & Kawaii Elements
+  kpopKawaii: [
+    'coquette bows and ribbons',
+    'Sanrio character motifs',
+    'pastel decora',
+    'idol stage costume inspired',
+    'magical girl aesthetic',
+    'cute bear face designs',
+    'heart and star charms',
+    'anime eye art',
+    'plushie texture',
+    'bubblegum pop colors',
+  ],
+
+  // WGSN Trend Colors & Patterns
+  trendyColors: [
+    'cyber Y2K metallics',
+    'dopamine bright neons',
+    'quiet luxury neutrals',
+    'sunset sorbet gradients',
+    'coastal grandmother blues',
+    'blueberry milk purples',
+    'matcha latte greens',
+    'peach fuzz pastels',
+    'cherry cola reds',
+    'digital lavender',
+  ],
+
+  // Pinterest Newsroom Concepts
+  concepts: [
+    'micro French tips',
+    'negative space minimalism',
+    'abstract squiggle art',
+    'geometric color blocking',
+    'pressed flower embeds',
+    'watercolor bleed effect',
+    'marble stone swirls',
+    'constellation dot patterns',
+    'ombre cloud fade',
+    'latte art swirls',
+  ],
+
+  // Specific Trend Details
+  details: [
+    'tiny rhinestone clusters',
+    'hand-painted illustrations',
+    'foil flake accents',
+    'aurora film strips',
+    'metallic leaf fragments',
+    'caviar bead textures',
+    'magnetic cat eye',
+    'thermal color-change',
+    'glow-in-the-dark elements',
+    'iridescent flakes',
+  ],
+};
+
+// Helper function to randomly select from array
+const getRandomItem = <T,>(array: T[]): T => {
+  return array[Math.floor(Math.random() * array.length)];
+};
+
+// Generate trend-specific nail art prompt
+const generateTrendPrompt = (): string => {
+  const aesthetic = getRandomItem(TREND_KEYWORDS.aesthetics);
+  const threeDElement = getRandomItem(TREND_KEYWORDS.threeDElements);
+  const finish = getRandomItem(TREND_KEYWORDS.finishes);
+  const kpopKawaii = getRandomItem(TREND_KEYWORDS.kpopKawaii);
+  const color = getRandomItem(TREND_KEYWORDS.trendyColors);
+  const concept = getRandomItem(TREND_KEYWORDS.concepts);
+  const detail = getRandomItem(TREND_KEYWORDS.details);
+
+  // Randomly combine 3-4 keywords for unique, specific prompts
+  const keywordPool = [
+    threeDElement,
+    finish,
+    kpopKawaii,
+    color,
+    concept,
+    detail,
+  ];
+
+  // Shuffle and pick 3 elements
+  const shuffled = keywordPool.sort(() => Math.random() - 0.5);
+  const selectedKeywords = shuffled.slice(0, 3);
+
+  return `${aesthetic} nail design featuring ${selectedKeywords.join(', ')}`;
+};
 
 export default function GalleryScreen() {
   const [savedImages, setSavedImages] = useState<string[]>([]);
@@ -54,12 +174,12 @@ export default function GalleryScreen() {
     try {
       setGenerating(true);
 
-      // Get random prompt
-      const randomPrompt = NAIL_ART_PROMPTS[Math.floor(Math.random() * NAIL_ART_PROMPTS.length)];
+      // Generate trend-specific prompt
+      const trendPrompt = generateTrendPrompt();
 
-      // Use Newell AI to generate image
+      // Use Newell AI to generate image with hyper-specific prompts
       const result = await generateImage({
-        prompt: `Beautiful ${randomPrompt}, high quality, professional photography, nail art inspiration, detailed and vibrant colors`,
+        prompt: `${trendPrompt}, ultra-detailed professional nail photography, studio lighting, high resolution, trending on Pinterest and WGSN, editorial quality, luxurious aesthetic`,
         width: 768,
         height: 1024,
         numOutputs: 1,
@@ -70,7 +190,7 @@ export default function GalleryScreen() {
         // Save to local storage
         await storage.saveImage(imageUrl);
         setSavedImages([imageUrl, ...savedImages]);
-        Alert.alert('Success! 🎨', 'New nail art inspiration generated!');
+        Alert.alert('Success! 💅✨', 'New trendy nail art created!');
       } else {
         Alert.alert('Generation Failed', result.error || 'Unknown error occurred');
       }
@@ -135,10 +255,10 @@ export default function GalleryScreen() {
         {/* Gallery Grid */}
         {savedImages.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateEmoji}>🎨</Text>
+            <Text style={styles.emptyStateEmoji}>💅</Text>
             <Text style={styles.emptyStateTitle}>No inspiration yet!</Text>
             <Text style={styles.emptyStateText}>
-              Tap the Generate button to create{'\n'}AI-powered nail art designs.
+              Tap Generate to create trendy designs{'\n'}inspired by K-pop, Kawaii, WGSN,{'\n'}and Asian 3D nail art!
             </Text>
           </View>
         ) : (
