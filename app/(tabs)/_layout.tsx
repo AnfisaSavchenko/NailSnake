@@ -40,6 +40,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="image" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="support"
+        options={{
+          title: 'Support',
+          tabBarIcon: ({ color }) => <TabBarIcon name="heart" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
@@ -48,7 +55,7 @@ export default function TabLayout() {
 function TabBarIcon({ name, color }: { name: string; color: string }) {
   return (
     <Text style={{ fontSize: 24, color }}>
-      {name === 'home' ? '🏠' : '🎨'}
+      {name === 'home' ? '🏠' : name === 'image' ? '🎨' : '💚'}
     </Text>
   );
 }
