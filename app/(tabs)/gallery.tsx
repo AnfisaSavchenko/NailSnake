@@ -7,107 +7,68 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { storage, TrendItem } from '@/utils/storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { useImageGeneration } from '@fastshot/ai';
 import { TrendCard } from '@/components/TrendCard';
-import { ImageViewerModal } from '@/components/ImageViewerModal';
 
-// Pinterest Simulator - Trend Categories
+// Pinterest Trend Roulette - Curated Keywords
 const TREND_CATEGORIES = {
   aesthetics: [
-    'Pinterest Newsroom editorial style',
+    'Pinterest Newsroom editorial',
     'WGSN trend forecast',
     'Kawaii character aesthetic',
-    'K-pop idol inspired',
-    'Asian 3D nail art',
-    'Japanese nail salon',
-    'Korean beauty editorial',
     'Harajuku street style',
+    'Korean beauty editorial',
   ],
   '3d_elements': [
     '3D jelly art',
     'Maximalist 3D charms',
-    '3D acrylic sculptures',
     'Dimensional gem clusters',
     '3D bubble tea pearls',
-    '3D kawaii characters',
-    'Raised floral appliques',
-    '3D crystal formations',
     'Sculptural pearl accents',
-    '3D resin flowers',
   ],
   finishes: [
     'Chrome powder mirror finish',
     'Syrup gel gradient',
     'Glass skin translucent',
     'Airbrush aura effect',
-    'Holographic iridescent',
     'Velvet matte texture',
-    'Glazed donut shine',
-    'Sugar crystal texture',
-    'Milk bath opacity',
-    'Candy gloss coating',
   ],
   kpop_kawaii: [
     'Coquette bows and ribbons',
     'Sanrio character motifs',
-    'Pastel decora',
-    'Idol stage costume inspired',
+    'NewJeans aesthetic',
     'Magical girl aesthetic',
-    'Cute bear face designs',
-    'Heart and star charms',
-    'Anime eye art',
-    'Plushie texture',
-    'Bubblegum pop colors',
   ],
   wgsn_colors: [
-    'Cyber Y2K metallics',
-    'Dopamine bright neons',
-    'Quiet luxury neutrals',
-    'Sunset sorbet gradients',
-    'Coastal grandmother blues',
-    'Blueberry milk purples',
+    'Digital lavender',
     'Matcha latte greens',
     'Peach fuzz pastels',
-    'Cherry cola reds',
-    'Digital lavender',
+    'Cyber Y2K metallics',
   ],
   newsroom_concepts: [
     'Micro French tips',
     'Negative space minimalism',
     'Abstract squiggle art',
-    'Geometric color blocking',
-    'Pressed flower embeds',
-    'Watercolor bleed effect',
-    'Marble stone swirls',
-    'Constellation dot patterns',
-    'Ombre cloud fade',
-    'Latte art swirls',
   ],
   specific_details: [
     'Tiny rhinestone clusters',
-    'Hand-painted illustrations',
-    'Foil flake accents',
     'Aurora film strips',
-    'Metallic leaf fragments',
-    'Caviar bead textures',
     'Magnetic cat eye',
-    'Thermal color-change',
-    'Glow-in-the-dark elements',
-    'Iridescent flakes',
   ],
 };
 
-// Helper to select random keyword from random category
+// Flatten all categories into a single array for random selection
+const ALL_TREND_KEYWORDS = Object.values(TREND_CATEGORIES).flat();
+
+// Helper to select random keyword from flattened list
 const getRandomKeyword = (): string => {
-  const categories = Object.values(TREND_CATEGORIES);
-  const randomCategory = categories[Math.floor(Math.random() * categories.length)];
-  const randomKeyword = randomCategory[Math.floor(Math.random() * randomCategory.length)];
-  return randomKeyword;
+  const randomIndex = Math.floor(Math.random() * ALL_TREND_KEYWORDS.length);
+  return ALL_TREND_KEYWORDS[randomIndex];
 };
 
 // Helper to format date for display
@@ -124,53 +85,7 @@ export default function GalleryScreen() {
   const [trendItems, setTrendItems] = useState<TrendItem[]>([]);
   const [credits, setCredits] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [selectedItem, setSelectedItem] = useState<TrendItem | null>(null);
   const insets = useSafeAreaInsets();
-
-  const { generateImage, isLoading: isGenerating } = useImageGeneration({
-    onSuccess: async (result) => {
-      if (result.images && result.images.length > 0) {
-        // Get the current keyword from state (set before generation)
-        const pendingKeyword = sessionStorage.current;
-        if (!pendingKeyword) return;
-
-        const newItem: TrendItem = {
-          id: Date.now().toString(),
-          keyword: pendingKeyword,
-          imageUrl: result.images[0],
-          createdAt: new Date().toISOString(),
-        };
-
-        // Save to storage
-        await storage.saveTrendItem(newItem);
-
-        // Update local state
-        const updatedItems = await storage.getTrendItems();
-        setTrendItems(updatedItems);
-
-        Alert.alert(
-          '✨ New Inspo Generated!',
-          `${pendingKeyword} added to your gallery!`,
-          [{ text: 'View', onPress: () => setSelectedItem(newItem) }]
-        );
-      }
-    },
-    onError: (error) => {
-      console.error('Image generation error:', error);
-      Alert.alert(
-        'Oops!',
-        'Could not generate image. Try again or check your connection.',
-        [{ text: 'OK', style: 'default' }]
-      );
-      // Refund the credit if generation failed
-      storage.addCredits(1).then(() => {
-        loadData();
-      });
-    },
-  });
-
-  // Session storage for current keyword
-  const sessionStorage = React.useRef<string | null>(null);
 
   // Reload data when screen comes into focus
   useFocusEffect(
@@ -198,13 +113,13 @@ export default function GalleryScreen() {
     }
   };
 
-  const generateNewTrend = async () => {
+  const unlockNewTrend = async () => {
     try {
       // Check if user has enough credits
       if (credits < 1) {
         Alert.alert(
           'Not Enough Credits! 💰',
-          'You need 1 credit to generate a new image. Check in daily to earn more credits!',
+          'You need 1 credit to unlock a new trend. Check in daily to earn more credits!',
           [{ text: 'Got it', style: 'default' }]
         );
         return;
@@ -222,20 +137,47 @@ export default function GalleryScreen() {
 
       // Select random keyword
       const keyword = getRandomKeyword();
-      sessionStorage.current = keyword;
 
-      // Construct prompt (Pinterest Simulator - High Fashion Editorial)
-      const prompt = `Macro photography of ${keyword} nail art, high fashion editorial, pinterest aesthetic, 8k resolution, highly detailed, professional lighting, trending style. NOT cartoon, NOT illustration, NOT drawing, NOT fake, NOT low quality, NOT blurry, NOT messy, NO text, NO watermark`;
+      // Create trend item (no image generation)
+      const newItem: TrendItem = {
+        id: Date.now().toString(),
+        keyword,
+        imageUrl: '', // No image URL for Pinterest launcher
+        createdAt: new Date().toISOString(),
+      };
 
-      // Generate image (10-30 seconds)
-      await generateImage({
-        prompt,
-        width: 1024,
-        height: 1024,
-      });
+      // Save to storage
+      await storage.saveTrendItem(newItem);
+
+      // Update local state
+      const updatedItems = await storage.getTrendItems();
+      setTrendItems(updatedItems);
+
+      Alert.alert(
+        '✨ New Trend Unlocked!',
+        `"${keyword}" has been added to your collection!`,
+        [{ text: 'Explore on Pinterest', onPress: () => openPinterestSearch(keyword) }]
+      );
     } catch (error) {
-      console.error('Error generating trend:', error);
-      Alert.alert('Error', 'Could not generate image. Please try again.');
+      console.error('Error unlocking trend:', error);
+      Alert.alert('Error', 'Could not unlock trend. Please try again.');
+    }
+  };
+
+  const openPinterestSearch = async (keyword: string) => {
+    try {
+      const searchQuery = `${keyword} nail art`;
+      const url = `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(searchQuery)}`;
+
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Cannot open Pinterest. Please make sure you have a browser installed.');
+      }
+    } catch (error) {
+      console.error('Error opening Pinterest:', error);
+      Alert.alert('Error', 'Could not open Pinterest. Please try again.');
     }
   };
 
@@ -255,7 +197,7 @@ export default function GalleryScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.headerTitle}>Inspo</Text>
-            <Text style={styles.headerSubtitle}>Pinterest Simulator</Text>
+            <Text style={styles.headerSubtitle}>Trend Roulette</Text>
           </View>
           <View style={styles.creditsContainer}>
             <Text style={styles.creditsEmoji}>💰</Text>
@@ -263,46 +205,35 @@ export default function GalleryScreen() {
           </View>
         </View>
 
-        {/* Generate Button */}
+        {/* Unlock Button */}
         <TouchableOpacity
           style={[
-            styles.generateButton,
-            (isGenerating || credits < 1) && styles.generateButtonDisabled,
+            styles.unlockButton,
+            credits < 1 && styles.unlockButtonDisabled,
           ]}
-          onPress={generateNewTrend}
-          disabled={isGenerating || credits < 1}
+          onPress={unlockNewTrend}
+          disabled={credits < 1}
           activeOpacity={0.8}
         >
-          {isGenerating ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator color={Colors.white} />
-              <Text style={styles.generatingText}>
-                Generating... (10-30 seconds)
-              </Text>
-            </View>
-          ) : (
-            <>
-              <Text style={styles.generateButtonText}>
-                Generate New Inspo (1 Credit)
-              </Text>
-              {credits < 1 && (
-                <Text style={styles.generateButtonSubtext}>
-                  Check in daily to earn credits!
-                </Text>
-              )}
-            </>
+          <Text style={styles.unlockButtonText}>
+            Unlock New Trend (1 Credit)
+          </Text>
+          {credits < 1 && (
+            <Text style={styles.unlockButtonSubtext}>
+              Check in daily to earn credits!
+            </Text>
           )}
         </TouchableOpacity>
 
         {/* Empty State */}
-        {trendItems.length === 0 && !isGenerating && (
+        {trendItems.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateEmoji}>🎨</Text>
             <Text style={styles.emptyStateText}>
-              Generate your first nail art inspiration!
+              Unlock your first trend!
             </Text>
             <Text style={styles.emptyStateSubtext}>
-              Each generation uses 1 credit. Check in daily to earn more.
+              Each trend costs 1 credit. Tap any trend to explore it on Pinterest!
             </Text>
           </View>
         )}
@@ -318,23 +249,12 @@ export default function GalleryScreen() {
                 key={item.id}
                 title={item.keyword}
                 date={formatDate(item.createdAt)}
-                onPress={() => setSelectedItem(item)}
+                onPress={() => openPinterestSearch(item.keyword)}
               />
             ))}
           </View>
         )}
       </ScrollView>
-
-      {/* Image Viewer Modal */}
-      {selectedItem && (
-        <ImageViewerModal
-          visible={!!selectedItem}
-          imageUrl={selectedItem.imageUrl}
-          title={selectedItem.keyword}
-          date={formatDate(selectedItem.createdAt)}
-          onClose={() => setSelectedItem(null)}
-        />
-      )}
     </View>
   );
 }
@@ -394,7 +314,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.darkBrown,
   },
-  generateButton: {
+  unlockButton: {
     backgroundColor: Colors.coralOrange,
     paddingVertical: 18,
     paddingHorizontal: 24,
@@ -407,29 +327,19 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
-  generateButtonDisabled: {
+  unlockButtonDisabled: {
     opacity: 0.5,
   },
-  generateButtonText: {
+  unlockButtonText: {
     color: Colors.white,
     fontSize: 18,
     fontWeight: '700',
   },
-  generateButtonSubtext: {
+  unlockButtonSubtext: {
     color: Colors.white,
     fontSize: 12,
     marginTop: 4,
     opacity: 0.9,
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  generatingText: {
-    color: Colors.white,
-    fontSize: 14,
-    fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',

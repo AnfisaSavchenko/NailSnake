@@ -59,12 +59,12 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#FFF0E5',
+    backgroundColor: '#FFE5B4',
     justifyContent: 'center',
     alignItems: 'center',
   },
   iconText: {
     fontSize: 24,
-    color: '#FF7F50',
+    color: '#FF8C00',
   },
 });
