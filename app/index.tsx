@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { Redirect } from 'expo-router';
 import { storage } from '@/utils/storage';
 import { Colors } from '@/constants/Colors';
@@ -14,6 +14,9 @@ export default function Index() {
 
   const checkOnboardingStatus = async () => {
     try {
+      // Small delay to prevent flickering
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       const isComplete = await storage.isOnboardingComplete();
       setOnboardingComplete(isComplete);
     } catch (error) {
@@ -26,7 +29,9 @@ export default function Index() {
   if (loading) {
     return (
       <View style={styles.container}>
+        <Text style={styles.logo}>🐍</Text>
         <ActivityIndicator size="large" color={Colors.coralOrange} />
+        <Text style={styles.loadingText}>Nailgrow</Text>
       </View>
     );
   }
@@ -44,5 +49,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.limeGreen,
+  },
+  logo: {
+    fontSize: 80,
+    marginBottom: 20,
+  },
+  loadingText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.darkBrown,
+    marginTop: 20,
   },
 });

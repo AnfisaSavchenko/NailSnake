@@ -13,6 +13,7 @@ import {
 import { Colors } from '@/constants/Colors';
 import { storage } from '@/utils/storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { generateImage } from '@fastshot/ai';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -154,6 +155,13 @@ export default function GalleryScreen() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const insets = useSafeAreaInsets();
+
+  // Reload images when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadImages();
+    }, [])
+  );
 
   useEffect(() => {
     loadImages();

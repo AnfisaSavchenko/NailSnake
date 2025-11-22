@@ -6,19 +6,27 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { storage } from '@/utils/storage';
+import { storage, StreakInfo } from '@/utils/storage';
 import { Snake } from '@/components/Snake';
 import { Confetti } from '@/components/Confetti';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function HomeScreen() {
-  const [streak, setStreak] = useState(0);
-  const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
+  const [streakInfo, setStreakInfo] = useState<StreakInfo | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
+
+  // Reload data when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
+  );
 
   useEffect(() => {
     loadData();
@@ -26,19 +34,23 @@ export default function HomeScreen() {
 
   const loadData = async () => {
     try {
-      const savedStreak = await storage.getStreak();
-      const lastCheckin = await storage.getLastCheckin();
+      setLoading(true);
+      const info = await storage.getStreakInfo();
+      setStreakInfo(info);
 
-      setStreak(savedStreak);
-
-      // Check if user already checked in today
-      if (lastCheckin) {
-        const lastDate = new Date(lastCheckin).toDateString();
-        const today = new Date().toDateString();
-        setHasCheckedInToday(lastDate === today);
+      // Show alert if streak was broken
+      if (info.streakBroken && info.daysMissed > 0) {
+        setTimeout(() => {
+          Alert.alert(
+            '🥺 Streak Reset',
+            `You missed ${info.daysMissed} day${info.daysMissed > 1 ? 's' : ''}. Your streak has been reset, but don't give up! Start fresh today! 💪`,
+            [{ text: 'Start Fresh', style: 'default' }]
+          );
+        }, 500);
       }
     } catch (error) {
       console.error('Error loading data:', error);
+      Alert.alert('Error', 'Failed to load your data. Please restart the app.');
     } finally {
       setLoading(false);
     }
@@ -46,20 +58,37 @@ export default function HomeScreen() {
 
   const handleCheckIn = async () => {
     try {
-      const newStreak = streak + 1;
-      const today = new Date().toISOString();
+      const result = await storage.performCheckin();
 
-      await storage.setStreak(newStreak);
-      await storage.setLastCheckin(today);
+      if (!result.success) {
+        Alert.alert('Already Checked In', 'You\'ve already checked in today! See you tomorrow! 🌟');
+        return;
+      }
 
-      setStreak(newStreak);
-      setHasCheckedInToday(true);
+      // Update UI with new streak
+      const updatedInfo = await storage.getStreakInfo();
+      setStreakInfo(updatedInfo);
       setShowConfetti(true);
 
       // Hide confetti after animation
       setTimeout(() => {
         setShowConfetti(false);
       }, 3000);
+
+      // Show milestone alerts
+      if (result.newStreak === 7) {
+        setTimeout(() => {
+          Alert.alert('🎉 One Week!', 'Amazing! You\'ve completed 7 days in a row!');
+        }, 3500);
+      } else if (result.newStreak === 30) {
+        setTimeout(() => {
+          Alert.alert('👑 30 Days!', 'Incredible! You\'re a nail-growing champion!');
+        }, 3500);
+      } else if (result.newStreak % 10 === 0 && result.newStreak > 0) {
+        setTimeout(() => {
+          Alert.alert('🔥 Milestone!', `${result.newStreak} days! You\'re unstoppable!`);
+        }, 3500);
+      }
     } catch (error) {
       console.error('Error checking in:', error);
       Alert.alert('Error', 'Failed to save check-in. Please try again.');
@@ -69,23 +98,37 @@ export default function HomeScreen() {
   const handleSlipUp = () => {
     Alert.alert(
       'That\'s okay! 💚',
-      'Progress isn\'t always linear. What matters is that you\'re here and trying. Your snake will wait for you!',
+      'Would you like to reset your streak and start fresh? Remember: progress isn\'t always linear!',
       [
         {
-          text: 'Keep Going',
-          style: 'default',
+          text: 'Keep Current Streak',
+          style: 'cancel',
+        },
+        {
+          text: 'Reset & Start Fresh',
+          style: 'destructive',
+          onPress: async () => {
+            await storage.resetStreak();
+            const updatedInfo = await storage.getStreakInfo();
+            setStreakInfo(updatedInfo);
+            Alert.alert('Fresh Start! 🌱', 'Your streak has been reset. You\'ve got this!');
+          },
         },
       ]
     );
   };
 
-  if (loading) {
+  if (loading || !streakInfo) {
     return (
       <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={Colors.coralOrange} />
         <Text style={styles.loadingText}>Loading your habitat...</Text>
       </View>
     );
   }
+
+  const streak = streakInfo.currentStreak;
+  const hasCheckedInToday = streakInfo.hasCheckedInToday;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -94,10 +137,24 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Your Habitat</Text>
-          <View style={styles.streakBadge}>
-            <Text style={styles.streakNumber}>{streak}</Text>
-            <Text style={styles.streakLabel}>day streak</Text>
+          <View>
+            <Text style={styles.headerTitle}>Your Habitat</Text>
+            {streakInfo.totalCheckins > 0 && (
+              <Text style={styles.headerSubtitle}>
+                {streakInfo.totalCheckins} total check-in{streakInfo.totalCheckins !== 1 ? 's' : ''}
+              </Text>
+            )}
+          </View>
+          <View>
+            <View style={styles.streakBadge}>
+              <Text style={styles.streakNumber}>{streak}</Text>
+              <Text style={styles.streakLabel}>day streak</Text>
+            </View>
+            {streakInfo.longestStreak > streak && streakInfo.longestStreak > 0 && (
+              <Text style={styles.longestStreakText}>
+                Best: {streakInfo.longestStreak} days
+              </Text>
+            )}
           </View>
         </View>
 
@@ -193,6 +250,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.darkBrown,
   },
+  headerSubtitle: {
+    fontSize: 14,
+    color: Colors.darkBrown,
+    opacity: 0.6,
+    marginTop: 4,
+  },
   streakBadge: {
     backgroundColor: Colors.coralOrange,
     paddingHorizontal: 20,
@@ -200,6 +263,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     minWidth: 80,
+  },
+  longestStreakText: {
+    fontSize: 12,
+    color: Colors.darkBrown,
+    textAlign: 'center',
+    marginTop: 6,
+    opacity: 0.7,
+    fontWeight: '600',
   },
   streakNumber: {
     fontSize: 24,
