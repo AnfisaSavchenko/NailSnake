@@ -216,25 +216,21 @@ export default function HomeScreen() {
 
         {/* Check-in Section */}
         <View style={styles.checkInSection}>
-          <Text style={styles.question}>
-            Did you let your nails{'\n'}grow today?
-          </Text>
-
           {hasCheckedInToday ? (
-            <View style={styles.completedCard}>
-              <Text style={styles.completedEmoji}>✓</Text>
-              <Text style={styles.completedText}>
-                Checked in for today!
-              </Text>
-              <Text style={styles.seeTomorrowText}>See you tomorrow</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.checkInButtonDisabled}
+              activeOpacity={1}
+              disabled
+            >
+              <Text style={styles.checkInButtonTextDisabled}>✓</Text>
+            </TouchableOpacity>
           ) : (
             <TouchableOpacity
               style={styles.checkInButton}
               onPress={handleCheckIn}
               activeOpacity={0.8}
             >
-              <Text style={styles.checkInButtonText}>Yes, I did! 🌱</Text>
+              <Text style={styles.checkInButtonText}>Check In</Text>
             </TouchableOpacity>
           )}
 
@@ -397,14 +393,6 @@ const styles = StyleSheet.create({
   checkInSection: {
     alignItems: 'center',
   },
-  question: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: Colors.darkBrown,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 36,
-  },
   checkInButton: {
     backgroundColor: Colors.coralOrange,
     paddingVertical: 20,
@@ -421,30 +409,17 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
   },
-  completedCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    paddingVertical: 30,
-    paddingHorizontal: 40,
-    borderRadius: 25,
-    alignItems: 'center',
+  checkInButtonDisabled: {
+    backgroundColor: 'rgba(139, 195, 74, 0.4)',
+    paddingVertical: 20,
+    paddingHorizontal: 50,
+    borderRadius: 30,
+    opacity: 0.6,
   },
-  completedEmoji: {
-    fontSize: 60,
-    marginBottom: 10,
-  },
-  completedText: {
-    fontSize: 18,
+  checkInButtonTextDisabled: {
     color: Colors.darkBrown,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  seeTomorrowText: {
-    fontSize: 14,
-    color: Colors.darkBrown,
-    opacity: 0.7,
-    fontStyle: 'italic',
-    textAlign: 'center',
+    fontSize: 32,
+    fontWeight: '700',
   },
   slipUpButton: {
     marginTop: 20,
