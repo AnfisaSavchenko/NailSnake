@@ -9,11 +9,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { storage } from '@/utils/storage';
+import { storage, TrendItem } from '@/utils/storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { MasonryGrid } from '@/components/MasonryGrid';
 import { useImageGeneration } from '@fastshot/ai';
+import { TrendCard } from '@/components/TrendCard';
+import { ImageViewerModal } from '@/components/ImageViewerModal';
 
 // Pinterest Simulator - Trend Categories
 const TREND_CATEGORIES = {
@@ -109,22 +110,48 @@ const getRandomKeyword = (): string => {
   return randomKeyword;
 };
 
+// Helper to format date for display
+const formatDate = (isoString: string): string => {
+  const date = new Date(isoString);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const day = date.getDate();
+  const year = date.getFullYear();
+  return `${month} ${day}, ${year}`;
+};
+
 export default function GalleryScreen() {
-  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
-  const [currentKeyword, setCurrentKeyword] = useState<string>('');
+  const [trendItems, setTrendItems] = useState<TrendItem[]>([]);
   const [credits, setCredits] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<TrendItem | null>(null);
   const insets = useSafeAreaInsets();
 
   const { generateImage, isLoading: isGenerating } = useImageGeneration({
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       if (result.images && result.images.length > 0) {
-        const newImage = result.images[0];
-        setGeneratedImages((prev) => [newImage, ...prev]);
+        // Get the current keyword from state (set before generation)
+        const pendingKeyword = sessionStorage.current;
+        if (!pendingKeyword) return;
+
+        const newItem: TrendItem = {
+          id: Date.now().toString(),
+          keyword: pendingKeyword,
+          imageUrl: result.images[0],
+          createdAt: new Date().toISOString(),
+        };
+
+        // Save to storage
+        await storage.saveTrendItem(newItem);
+
+        // Update local state
+        const updatedItems = await storage.getTrendItems();
+        setTrendItems(updatedItems);
+
         Alert.alert(
           '✨ New Inspo Generated!',
-          `${currentKeyword} added to your gallery!`,
-          [{ text: 'Love it!', style: 'default' }]
+          `${pendingKeyword} added to your gallery!`,
+          [{ text: 'View', onPress: () => setSelectedItem(newItem) }]
         );
       }
     },
@@ -137,34 +164,41 @@ export default function GalleryScreen() {
       );
       // Refund the credit if generation failed
       storage.addCredits(1).then(() => {
-        loadCredits();
+        loadData();
       });
     },
   });
 
-  // Reload credits when screen comes into focus
+  // Session storage for current keyword
+  const sessionStorage = React.useRef<string | null>(null);
+
+  // Reload data when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      loadCredits();
+      loadData();
     }, [])
   );
 
   useEffect(() => {
-    loadCredits();
+    loadData();
   }, []);
 
-  const loadCredits = async () => {
+  const loadData = async () => {
     try {
-      const currentCredits = await storage.getCredits();
+      const [currentCredits, items] = await Promise.all([
+        storage.getCredits(),
+        storage.getTrendItems(),
+      ]);
       setCredits(currentCredits);
+      setTrendItems(items);
     } catch (error) {
-      console.error('Error loading credits:', error);
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const unlockNewImage = async () => {
+  const generateNewTrend = async () => {
     try {
       // Check if user has enough credits
       if (credits < 1) {
@@ -188,7 +222,7 @@ export default function GalleryScreen() {
 
       // Select random keyword
       const keyword = getRandomKeyword();
-      setCurrentKeyword(keyword);
+      sessionStorage.current = keyword;
 
       // Construct prompt (photorealistic, high-end style)
       const prompt = `${keyword} nail art, Macro photography, high-end beauty editorial, Pinterest trending style, photorealistic, 8k resolution, soft lighting. NOT illustration, NOT painting, NOT cartoon`;
@@ -200,7 +234,7 @@ export default function GalleryScreen() {
         height: 1024,
       });
     } catch (error) {
-      console.error('Error unlocking image:', error);
+      console.error('Error generating trend:', error);
       Alert.alert('Error', 'Could not generate image. Please try again.');
     }
   };
@@ -229,13 +263,13 @@ export default function GalleryScreen() {
           </View>
         </View>
 
-        {/* Unlock Button */}
+        {/* Generate Button */}
         <TouchableOpacity
           style={[
-            styles.unlockButton,
-            (isGenerating || credits < 1) && styles.unlockButtonDisabled,
+            styles.generateButton,
+            (isGenerating || credits < 1) && styles.generateButtonDisabled,
           ]}
-          onPress={unlockNewImage}
+          onPress={generateNewTrend}
           disabled={isGenerating || credits < 1}
           activeOpacity={0.8}
         >
@@ -248,11 +282,11 @@ export default function GalleryScreen() {
             </View>
           ) : (
             <>
-              <Text style={styles.unlockButtonText}>
+              <Text style={styles.generateButtonText}>
                 Generate New Inspo (1 Credit)
               </Text>
               {credits < 1 && (
-                <Text style={styles.unlockButtonSubtext}>
+                <Text style={styles.generateButtonSubtext}>
                   Check in daily to earn credits!
                 </Text>
               )}
@@ -260,16 +294,8 @@ export default function GalleryScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Current Keyword Display */}
-        {currentKeyword && !isGenerating && (
-          <View style={styles.keywordDisplay}>
-            <Text style={styles.keywordLabel}>Latest:</Text>
-            <Text style={styles.keywordValue}>{currentKeyword}</Text>
-          </View>
-        )}
-
         {/* Empty State */}
-        {generatedImages.length === 0 && !isGenerating && (
+        {trendItems.length === 0 && !isGenerating && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateEmoji}>🎨</Text>
             <Text style={styles.emptyStateText}>
@@ -281,23 +307,34 @@ export default function GalleryScreen() {
           </View>
         )}
 
-        {/* Masonry Grid */}
-        {generatedImages.length > 0 && (
-          <>
-            <Text style={styles.galleryTitle}>
-              Your Gallery ({generatedImages.length})
+        {/* Trend Cards List */}
+        {trendItems.length > 0 && (
+          <View style={styles.trendList}>
+            <Text style={styles.sectionTitle}>
+              Your Collection ({trendItems.length})
             </Text>
-            <MasonryGrid images={generatedImages} />
-          </>
-        )}
-
-        {/* Footer tip */}
-        {generatedImages.length > 0 && (
-          <Text style={styles.tipText}>
-            💡 Each image is AI-generated from curated Pinterest trends
-          </Text>
+            {trendItems.map((item) => (
+              <TrendCard
+                key={item.id}
+                title={item.keyword}
+                date={formatDate(item.createdAt)}
+                onPress={() => setSelectedItem(item)}
+              />
+            ))}
+          </View>
         )}
       </ScrollView>
+
+      {/* Image Viewer Modal */}
+      {selectedItem && (
+        <ImageViewerModal
+          visible={!!selectedItem}
+          imageUrl={selectedItem.imageUrl}
+          title={selectedItem.keyword}
+          date={formatDate(selectedItem.createdAt)}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
     </View>
   );
 }
@@ -357,28 +394,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.darkBrown,
   },
-  unlockButton: {
+  generateButton: {
     backgroundColor: Colors.coralOrange,
     paddingVertical: 18,
     paddingHorizontal: 24,
     borderRadius: 25,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
-  unlockButtonDisabled: {
+  generateButtonDisabled: {
     opacity: 0.5,
   },
-  unlockButtonText: {
+  generateButtonText: {
     color: Colors.white,
     fontSize: 18,
     fontWeight: '700',
   },
-  unlockButtonSubtext: {
+  generateButtonSubtext: {
     color: Colors.white,
     fontSize: 12,
     marginTop: 4,
@@ -393,25 +430,6 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 14,
     fontWeight: '600',
-  },
-  keywordDisplay: {
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 15,
-    marginBottom: 20,
-  },
-  keywordLabel: {
-    fontSize: 12,
-    color: Colors.darkBrown,
-    opacity: 0.7,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  keywordValue: {
-    fontSize: 16,
-    color: Colors.darkBrown,
-    fontWeight: '700',
   },
   emptyState: {
     alignItems: 'center',
@@ -436,18 +454,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  galleryTitle: {
+  trendList: {
+    marginTop: 8,
+  },
+  sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: Colors.darkBrown,
-    marginBottom: 12,
-  },
-  tipText: {
-    textAlign: 'center',
-    fontSize: 14,
-    color: Colors.darkBrown,
-    opacity: 0.6,
-    marginTop: 24,
-    fontStyle: 'italic',
+    marginBottom: 16,
   },
 });

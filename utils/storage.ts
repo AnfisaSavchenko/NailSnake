@@ -11,6 +11,7 @@ const KEYS = {
   STORAGE_VERSION: '@nailgrow:storage_version',
   CREDITS: '@nailgrow:credits',
   CHAT_HISTORY: '@nailgrow:chat_history',
+  TREND_ITEMS: '@nailgrow:trend_items',
 };
 
 const STORAGE_VERSION = '1.0';
@@ -66,6 +67,13 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+}
+
+export interface TrendItem {
+  id: string;
+  keyword: string;
+  imageUrl: string;
+  createdAt: string;
 }
 
 export const storage = {
@@ -437,6 +445,37 @@ export const storage = {
       await AsyncStorage.removeItem(KEYS.CHAT_HISTORY);
     } catch (error) {
       console.error('Error clearing chat history:', error);
+      throw error;
+    }
+  },
+
+  // Trend Items (Gallery)
+  async getTrendItems(): Promise<TrendItem[]> {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.TREND_ITEMS);
+      return value ? JSON.parse(value) : [];
+    } catch (error) {
+      console.error('Error getting trend items:', error);
+      return [];
+    }
+  },
+
+  async saveTrendItem(item: TrendItem): Promise<void> {
+    try {
+      const items = await this.getTrendItems();
+      items.unshift(item); // Add to beginning of array
+      await AsyncStorage.setItem(KEYS.TREND_ITEMS, JSON.stringify(items));
+    } catch (error) {
+      console.error('Error saving trend item:', error);
+      throw error;
+    }
+  },
+
+  async clearTrendItems(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(KEYS.TREND_ITEMS);
+    } catch (error) {
+      console.error('Error clearing trend items:', error);
       throw error;
     }
   },
