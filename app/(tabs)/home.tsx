@@ -13,6 +13,7 @@ import { storage, StreakInfo } from '@/utils/storage';
 import { Snake } from '@/components/Snake';
 import { Confetti } from '@/components/Confetti';
 import { InfoModal } from '@/components/InfoModal';
+import { SettingsModal } from '@/components/SettingsModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -21,6 +22,7 @@ export default function HomeScreen() {
   const [credits, setCredits] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
 
@@ -85,8 +87,8 @@ export default function HomeScreen() {
 
       // Show credit reward alert first
       Alert.alert(
-        '💰 +1 Credit Earned!',
-        `You now have ${result.newCreditBalance} credit${result.newCreditBalance !== 1 ? 's' : ''}! Use them to generate nail art in the Inspo tab.`,
+        '💰 +2 Credits Earned!',
+        `You now have ${result.newCreditBalance} credit${result.newCreditBalance !== 1 ? 's' : ''}! Use them to unlock trends in the Inspo tab.`,
         [{ text: 'Nice!', style: 'default' }]
       );
 
@@ -133,6 +135,24 @@ export default function HomeScreen() {
     );
   };
 
+  const handleResetProgress = async () => {
+    try {
+      // Clear all data from AsyncStorage
+      await storage.resetStreak();
+      await storage.setCredits(0);
+      await storage.clearChatHistory();
+      await storage.clearTrendItems();
+
+      // Reload data to update UI
+      await loadData();
+
+      Alert.alert('🌱 Fresh Start', 'All progress has been reset. Your journey begins anew!');
+    } catch (error) {
+      console.error('Error resetting progress:', error);
+      Alert.alert('Error', 'Could not reset progress. Please try again.');
+    }
+  };
+
   if (loading || !streakInfo) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -149,6 +169,11 @@ export default function HomeScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {showConfetti && <Confetti />}
       <InfoModal visible={showInfoModal} onClose={() => setShowInfoModal(false)} />
+      <SettingsModal
+        visible={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        onResetProgress={handleResetProgress}
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header with Credits and Info */}
@@ -157,13 +182,22 @@ export default function HomeScreen() {
             <Text style={styles.creditsEmoji}>💰</Text>
             <Text style={styles.creditsText}>{credits}</Text>
           </View>
-          <TouchableOpacity
-            style={styles.infoButton}
-            onPress={() => setShowInfoModal(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.infoButtonText}>?</Text>
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.infoButton}
+              onPress={() => setShowInfoModal(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.infoButtonText}>?</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={() => setShowSettingsModal(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.settingsButtonText}>⚙️</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Title */}
@@ -288,6 +322,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.darkBrown,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   infoButton: {
     width: 36,
     height: 36,
@@ -305,6 +343,22 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: Colors.white,
+  },
+  settingsButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.coralOrange,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  settingsButtonText: {
+    fontSize: 18,
   },
   pageTitle: {
     fontSize: 36,

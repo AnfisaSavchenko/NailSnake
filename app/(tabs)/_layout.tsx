@@ -43,7 +43,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="support"
         options={{
-          title: 'Support',
+          title: 'Fairy',
           tabBarIcon: ({ color }) => <TabBarIcon name="heart" color={color} />,
         }}
       />

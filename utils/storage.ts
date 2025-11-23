@@ -287,14 +287,14 @@ export const storage = {
       await this.setStreak(newStreak);
       await this.setLastCheckin(today);
 
-      // Award 1 credit for check-in
-      const newCreditBalance = await this.addCredits(1);
+      // Award 2 credits for check-in
+      const newCreditBalance = await this.addCredits(2);
 
       return {
         success: true,
         newStreak,
         totalCheckins,
-        creditsEarned: 1,
+        creditsEarned: 2,
         newCreditBalance,
       };
     } catch (error) {
