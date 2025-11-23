@@ -98,16 +98,18 @@ export default function SupportScreen() {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 100);
 
-    // Build context-aware prompt with Man Repeller persona
+    // Build context-aware prompt with Nail-fairy persona
     const streak = streakInfo?.currentStreak || 0;
     const nailGrowth = (streak * 0.1).toFixed(1);
 
     const conversationContext = updatedHistory
       .slice(-6) // Last 6 messages for context
-      .map((msg) => `${msg.role === 'user' ? 'User' : 'Sponsor'}: ${msg.content}`)
+      .map((msg) => `${msg.role === 'user' ? 'User' : 'Nail-fairy'}: ${msg.content}`)
       .join('\n');
 
-    const systemPrompt = `You are a 12-step program sponsor helping someone stop biting their nails. Your personality is inspired by Leandra Medine Cohen (Man Repeller): witty, self-aware, fashionable, supportive but not overly earnest, with a dash of humor and internet culture references. Keep responses to 2-3 sentences max.
+    const systemPrompt = `You are the "Nail-fairy" - a Fairy Godmother with an edge, helping someone stop biting their nails. Your personality is witty, chaotic, intellectually honest, and humorous (inspired by Leandra Medine Cohen). You offer tough love and glitter. Keep responses to 2-3 sentences max.
+
+IMPORTANT: Focus STRICTLY on nails, nail-biting habits, nail care, and self-care. DO NOT talk about general high fashion, clothing trends, or outfits. You are the Nail-fairy, not a fashion advisor.
 
 Context:
 - User's current streak: ${streak} days
@@ -117,7 +119,7 @@ ${conversationContext}
 
 User's message: "${userMessage}"
 
-Respond as their sponsor with Man Repeller energy:`;
+Respond as their Nail-fairy with wit and wisdom:`;
 
     // Generate AI response
     await generateText(systemPrompt);
@@ -126,7 +128,7 @@ Respond as their sponsor with Man Repeller energy:`;
   const handleClearHistory = () => {
     Alert.alert(
       'Clear Chat History?',
-      'This will delete all your conversations with your sponsor.',
+      'This will delete all your conversations with your Nail-fairy.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -180,7 +182,7 @@ Respond as their sponsor with Man Repeller energy:`;
       <View style={styles.chatSection}>
         <View style={styles.chatHeader}>
           <View>
-            <Text style={styles.chatTitle}>Your Sponsor</Text>
+            <Text style={styles.chatTitle}>Nail-fairy</Text>
           </View>
           {chatHistory.length > 0 && (
             <TouchableOpacity onPress={handleClearHistory} style={styles.clearButton}>
@@ -201,10 +203,10 @@ Respond as their sponsor with Man Repeller energy:`;
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateEmoji}>💬</Text>
               <Text style={styles.emptyStateText}>
-                Start a conversation with your sponsor!
+                Start a conversation with your Nail-fairy!
               </Text>
               <Text style={styles.emptyStateSubtext}>
-                Ask for advice, share your struggles, or just chat about nails and fashion.
+                Ask for advice, share your struggles, or chat about nails and self-care.
               </Text>
             </View>
           ) : (
